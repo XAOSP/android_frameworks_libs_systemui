@@ -16,6 +16,8 @@
 
 package com.android.launcher3.icons;
 
+import static com.android.launcher3.util.override.MainThreadInitializedObject.forOverride;
+
 import static android.content.Intent.ACTION_DATE_CHANGED;
 import static android.content.Intent.ACTION_TIMEZONE_CHANGED;
 import static android.content.Intent.ACTION_TIME_CHANGED;
@@ -52,13 +54,16 @@ import androidx.core.os.BuildCompat;
 
 import com.android.launcher3.util.SafeCloseable;
 
+import com.android.launcher3.util.override.MainThreadInitializedObject;
+import com.android.launcher3.util.override.ResourceBasedOverride;
+
 import java.util.Calendar;
 import java.util.function.Supplier;
 
 /**
  * Class to handle icon loading from different packages
  */
-public class IconProvider {
+public class IconProvider implements ResourceBasedOverride {
 
     private final String ACTION_OVERLAY_CHANGED = "android.intent.action.OVERLAY_CHANGED";
     static final int CONFIG_ICON_MASK_RES_ID = Resources.getSystem().getIdentifier(
@@ -75,6 +80,9 @@ public class IconProvider {
     protected final Context mContext;
     private final ComponentName mCalendar;
     private final ComponentName mClock;
+
+    public static MainThreadInitializedObject<IconProvider> INSTANCE =
+            forOverride(IconProvider.class, R.string.icon_provider_class);
 
     public IconProvider(Context context) {
         mContext = context;
@@ -132,10 +140,8 @@ public class IconProvider {
             icon = fallback.get();
             if (ATLEAST_T && icon instanceof AdaptiveIconDrawable && td != null) {
                 AdaptiveIconDrawable aid = (AdaptiveIconDrawable) icon;
-                if  (aid.getMonochrome() == null) {
-                    icon = new AdaptiveIconDrawable(aid.getBackground(),
-                            aid.getForeground(), td.loadPaddedDrawable());
-                }
+                icon = new AdaptiveIconDrawable(aid.getBackground(),
+                        aid.getForeground(), td.loadPaddedDrawable());
             }
         }
         return icon;
@@ -178,9 +184,6 @@ public class IconProvider {
                 Drawable drawable = resources.getDrawableForDensity(id, iconDpi, null /* theme */);
                 if (ATLEAST_T && drawable instanceof AdaptiveIconDrawable && td != null) {
                     AdaptiveIconDrawable aid = (AdaptiveIconDrawable) drawable;
-                    if  (aid.getMonochrome() != null) {
-                        return drawable;
-                    }
                     if ("array".equals(td.mResources.getResourceTypeName(td.mResID))) {
                         TypedArray ta = td.mResources.obtainTypedArray(td.mResID);
                         int monoId = ta.getResourceId(IconProvider.getDay(), ID_NULL);
@@ -188,6 +191,9 @@ public class IconProvider {
                         return monoId == ID_NULL ? drawable
                                 : new AdaptiveIconDrawable(aid.getBackground(), aid.getForeground(),
                                         new ThemeData(td.mResources, monoId).loadPaddedDrawable());
+                    }
+                    if  (aid.getMonochrome() != null) {
+                        return drawable;
                     }
                 }
                 return drawable;
